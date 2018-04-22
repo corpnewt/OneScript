@@ -1,6 +1,12 @@
 #!/usr/bin/python
-# 0.0.1
+# 0.0.2
 import os, subprocess, shlex, datetime, sys
+
+# Python-aware urllib stuff
+if sys.version_info >= (3, 0):
+    from urllib.request import urlopen
+else:
+    from urllib2 import urlopen
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
