@@ -79,7 +79,6 @@ def check_update():
     with open(os.path.realpath(__file__), "r") as f:
         # Our version should always be the second line
         version = get_version(f.read())
-    print(version)
     try:
         new_text = _get_string(url)
         new_version = get_version(new_text)
