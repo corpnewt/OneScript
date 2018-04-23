@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# 0.0.2
+# 0.0.3
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -79,6 +79,7 @@ def check_update():
     with open(os.path.realpath(__file__), "r") as f:
         # Our version should always be the second line
         version = get_version(f.read())
+    print(version)
     try:
         new_text = _get_string(url)
         new_version = get_version(new_text)
@@ -101,7 +102,7 @@ def check_update():
         return
 
     if not need_update(cv, v):
-        print("v{} is already current.".format(self.version))
+        print("v{} is already current.".format(version))
         return
 
     # Update
@@ -111,6 +112,24 @@ def check_update():
     # chmod +x, then restart
     run_command(["chmod", "+x", __file__])
     os.execv(__file__, sys.argv)
+
+def chmod(path):
+    # Takes a directory path, then chmod +x /that/path/*.command
+    if not os.path.exists(path):
+        return
+    accepted = [ ".command", ".sh", ".py" ]
+    if not os.path.isdir(path):
+        # sent a file - just chmod that
+        run_command(["chmod", "+x", path])
+        return
+    # Iterate all files in the dir and chmod the applicable ones
+    cwd = os.getcwd()
+    os.chdir(path)
+    for f in os.listdir(path):
+        if any(f for x in accepted if f.lower().endswith(x.lower())):
+            # Found an acceptable file
+            run_command(["chmod", "+x", f])
+    os.chdir(cwd)
 
 def cls():
    	os.system('cls' if os.name=='nt' else 'clear')
@@ -173,6 +192,8 @@ def update():
             else:
                 print(out[1])
             os.chdir(cwd)
+        # Set perms
+        chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
 
 def main():
     update()
