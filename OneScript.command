@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# 0.0.3
+# 0.0.4
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -14,6 +14,7 @@ repos = [
     "https://github.com/corpnewt/EssentialsList",
     "https://github.com/corpnewt/Lilu-and-Friends",
     "https://github.com/corpnewt/CheckClover",
+    "https://github.com/corpnewt/CheckAPFS",
     "https://github.com/corpnewt/Plist-Tool",
     "https://github.com/corpnewt/CPU-Name",
     "https://github.com/corpnewt/Web-Driver-Toolkit",
