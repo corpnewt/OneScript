@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# 0.0.5
+# 0.0.6
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -188,6 +188,7 @@ def update():
             print("Updating {}...".format(os.path.basename(repo)))
             cwd = os.getcwd()
             os.chdir(os.path.basename(repo))
+            out = run_command(["git", "reset", "--hard"])
             out = run_command(["git", "pull"])
             if out[2] == 0:
                 print(out[0])
