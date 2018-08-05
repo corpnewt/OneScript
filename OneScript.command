@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# 0.0.9
+# 0.0.10
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -25,7 +25,8 @@ repos = [
     "https://github.com/corpnewt/CloverExtractor",
     "https://github.com/corpnewt/AppleALC-Scrub",
     "https://github.com/corpnewt/pymodules",
-    "https://github.com/corpnewt/KextExtractor"
+    "https://github.com/corpnewt/KextExtractor",
+    "https://github.com/corpnewt/EFI-Backup-Restore"
 ]
 
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
