@@ -26,7 +26,8 @@ repos = [
     "https://github.com/corpnewt/AppleALC-Scrub",
     "https://github.com/corpnewt/pymodules",
     "https://github.com/corpnewt/KextExtractor",
-    "https://github.com/corpnewt/EFI-Backup-Restore"
+    "https://github.com/corpnewt/EFI-Backup-Restore",
+    "https://github.com/corpnewt/GenSMBIOS"
 ]
 
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
