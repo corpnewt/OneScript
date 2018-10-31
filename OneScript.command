@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# 0.0.13
+# 0.0.14
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -29,7 +29,8 @@ repos = [
     "https://github.com/corpnewt/EFI-Backup-Restore",
     "https://github.com/corpnewt/GenSMBIOS",
     "https://github.com/corpnewt/gibMacOS",
-    "https://github.com/corpnewt/ForceRGB"
+    "https://github.com/corpnewt/ForceRGB",
+    "https://github.com/corpnewt/GetHDEF"
 ]
 
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
@@ -179,12 +180,14 @@ def custom_quit():
 
 def update():
     check_update()
-    head("Updating Repos")
+    head("Checking {} Repo{}".format(len(repos), "" if len(repos) == 1 else "s"))
     print(" ")
-    for repo in repos:
+    count = 0
+    for repo in sorted(repos, key=lambda x: os.path.basename(x)):
+        count += 1
         if not os.path.exists(os.path.join(os.getcwd(), os.path.basename(repo))):
             # Doesn't exist - git clone that shiz
-            print("Cloning {}...".format(os.path.basename(repo)))
+            print("{} of {} - Cloning {}...".format(count, len(repos), os.path.basename(repo)))
             out = run_command(["git", "clone", repo])
             if out[2] == 0:
                 print(out[0])
@@ -192,7 +195,7 @@ def update():
                 print(out[1])
         else:
             # Exists - let's update it
-            print("Updating {}...".format(os.path.basename(repo)))
+            print("{} of {} - Updating {}...".format(count, len(repos), os.path.basename(repo)))
             cwd = os.getcwd()
             os.chdir(os.path.basename(repo))
             out = run_command(["git", "reset", "--hard"])
