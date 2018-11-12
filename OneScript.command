@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.15
+# 0.0.16
 import os, subprocess, shlex, datetime, sys
 
 # Python-aware urllib stuff
@@ -30,7 +30,8 @@ repos = [
     "https://github.com/corpnewt/GenSMBIOS",
     "https://github.com/corpnewt/gibMacOS",
     "https://github.com/corpnewt/ForceRGB",
-    "https://github.com/corpnewt/GetHDEF"
+    "https://github.com/corpnewt/GetHDEF",
+    "https://github.com/corpnewt/USBMap"
 ]
 
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
