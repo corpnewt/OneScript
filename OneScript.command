@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.17
+# 0.0.18
 import os, subprocess, shlex, datetime, sys, json
 
 # Python-aware urllib stuff
@@ -11,7 +11,7 @@ else:
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 selfrepo = "OneScript"
-repourl = "https://api.github.com/search/repositories?q=user:corpnewt"
+repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
 
 def run_command(comm, shell = False):
