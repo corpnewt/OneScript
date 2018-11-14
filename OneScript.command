@@ -193,7 +193,7 @@ print("")
 print(repourl)
 print("")
 all_repos = json.loads(_get_string(repourl))
-repos = [x["html_url"] for x in all_repos["items"] if not x["name"] == selfrepo]
+repos = [x["html_url"] for x in all_repos if not x["name"] == selfrepo]
 
 def main():
     update()
