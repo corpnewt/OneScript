@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# 0.0.16
-import os, subprocess, shlex, datetime, sys
+# 0.0.17
+import os, subprocess, shlex, datetime, sys, json
 
 # Python-aware urllib stuff
 if sys.version_info >= (3, 0):
@@ -10,30 +10,8 @@ else:
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-repos = [
-    "https://github.com/corpnewt/EssentialsList",
-    "https://github.com/corpnewt/Lilu-and-Friends",
-    "https://github.com/corpnewt/CheckClover",
-    "https://github.com/corpnewt/CheckAPFS",
-    "https://github.com/corpnewt/Plist-Tool",
-    "https://github.com/corpnewt/CPU-Name",
-    "https://github.com/corpnewt/Web-Driver-Toolkit",
-    "https://github.com/corpnewt/APFS-Non-Verbose",
-    "https://github.com/corpnewt/MountEFI",
-    "https://github.com/corpnewt/USB-Installer-Creator",
-    "https://github.com/corpnewt/Check-Some",
-    "https://github.com/corpnewt/CloverExtractor",
-    "https://github.com/corpnewt/AppleALC-Scrub",
-    "https://github.com/corpnewt/pymodules",
-    "https://github.com/corpnewt/KextExtractor",
-    "https://github.com/corpnewt/EFI-Backup-Restore",
-    "https://github.com/corpnewt/GenSMBIOS",
-    "https://github.com/corpnewt/gibMacOS",
-    "https://github.com/corpnewt/ForceRGB",
-    "https://github.com/corpnewt/GetHDEF",
-    "https://github.com/corpnewt/USBMap"
-]
-
+selfrepo = "OneScript"
+repourl = "https://api.github.com/search/repositories?q=user:corpnewt"
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
 
 def run_command(comm, shell = False):
@@ -208,6 +186,14 @@ def update():
             os.chdir(cwd)
         # Set perms
         chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
+
+# Gather all repos
+head("Gathering Repo Info...")
+print("")
+print(repourl)
+print("")
+all_repos = json.loads(_get_string(repourl))
+repos = [x["html_url"] for x in all_repos["items"] if not x["name"] == selfrepo]
 
 def main():
     update()
