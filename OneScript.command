@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-# 0.0.18
-import os, subprocess, shlex, datetime, sys, json
+# 0.0.19
+import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
 if sys.version_info >= (3, 0):
     from urllib.request import urlopen
 else:
+    # Import urllib2 to catch errors
+    import urllib2
     from urllib2 import urlopen
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -29,8 +31,27 @@ def run_command(comm, shell = False):
             return ("", "Command not found!", 1)
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
 
+def open_url(url):
+    # Wrap up the try/except block so we don't have to do this for each function
+    try:
+        response = urlopen(url)
+    except Exception as e:
+        if sys.version_info >= (3, 0) or not (isinstance(e, urllib2.URLError) and "CERTIFICATE_VERIFY_FAILED" in str(e)):
+            # Either py3, or not the right error for this "fix"
+            return None
+        # Py2 and a Cert verify error - let's set the unverified context
+        context = ssl._create_unverified_context()
+        try:
+            response = urlopen(url, context=context)
+        except:
+            # No fixing this - bail
+            return None
+    return response
+
 def _get_string(url):
-    response = urlopen(url)
+    response = open_url(url)
+    if not response:
+        return None
     CHUNK = 16 * 1024
     bytes_so_far = 0
     try:
@@ -41,7 +62,6 @@ def _get_string(url):
     while True:
         chunk = response.read(CHUNK)
         bytes_so_far += len(chunk)
-        #self._progress_hook(response, bytes_so_far, total_size)
         if not chunk:
             break
         chunk_so_far += chunk
