@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.19
+# 0.0.20
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -9,10 +9,11 @@ else:
     # Import urllib2 to catch errors
     import urllib2
     from urllib2 import urlopen
+    input = raw_input
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-selfrepo = "OneScript"
+skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot")
 repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
 url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
 
@@ -100,7 +101,7 @@ def check_update():
     if version == new_version:
         # The same - return
         print("v{} is already current.".format(version))
-        return
+        return True
     # Split the version number
     try:
         v = version.split(".")
@@ -112,15 +113,15 @@ def check_update():
 
     if not need_update(cv, v):
         print("v{} is already current.".format(version))
-        return
+        return True
 
     # Update
     with open(os.path.realpath(__file__), "w") as f:
         f.write(new_text)
 
-    # chmod +x, then restart
-    run_command(["chmod", "+x", __file__])
-    os.execv(__file__, sys.argv)
+    # chmod +x on non-Windows, then restart
+    if os.name!="nt": run_command(["chmod", "+x", __file__])
+    os.execv(sys.executable, [sys.executable,__file__]+sys.argv)
 
 def chmod(path):
     # Takes a directory path, then chmod +x /that/path/*.command
@@ -178,7 +179,8 @@ def custom_quit():
     exit(0)
 
 def update():
-    check_update()
+    if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
+        input("\nPress [enter] to continue...")
     head("Checking {} Repo{}".format(len(repos), "" if len(repos) == 1 else "s"))
     print(" ")
     count = 0
@@ -188,10 +190,6 @@ def update():
             # Doesn't exist - git clone that shiz
             print("{} of {} - Cloning {}...".format(count, len(repos), os.path.basename(repo)))
             out = run_command(["git", "clone", repo])
-            if out[2] == 0:
-                print(out[0])
-            else:
-                print(out[1])
         else:
             # Exists - let's update it
             print("{} of {} - Updating {}...".format(count, len(repos), os.path.basename(repo)))
@@ -199,13 +197,10 @@ def update():
             os.chdir(os.path.basename(repo))
             out = run_command(["git", "reset", "--hard"])
             out = run_command(["git", "pull"])
-            if out[2] == 0:
-                print(out[0])
-            else:
-                print(out[1])
             os.chdir(cwd)
+        print(out[0] if out[2] == 0 else out[1])
         # Set perms
-        chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
+        if os.name!="nt": chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
 
 # Gather all repos
 head("Gathering Repo Info...")
@@ -213,7 +208,7 @@ print("")
 print(repourl)
 print("")
 all_repos = json.loads(_get_string(repourl))
-repos = [x["html_url"] for x in all_repos if not x["name"] == selfrepo]
+repos = [x["html_url"] for x in all_repos if not x["name"] in skiprepos]
 
 def main():
     update()
