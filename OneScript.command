@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.20
+# 0.0.21
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -212,6 +212,7 @@ repos = [x["html_url"] for x in all_repos if not x["name"] in skiprepos]
 
 def main():
     update()
+    if os.name == "nt": input("Press [enter] to exit...") # Let the user exit on Windows
     custom_quit()
 
 
