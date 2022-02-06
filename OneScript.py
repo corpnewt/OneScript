@@ -15,7 +15,7 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot")
 repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
-url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command"
+url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.py"
 
 def run_command(comm, shell = False):
     c = None
