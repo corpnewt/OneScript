@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.22
+# 0.0.23
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -15,7 +15,8 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot")
 repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
-url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.py"
+base_url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/{}"
+file_list = ("OneScript.py","OneScript.command","OneScript.bat")
 
 def run_command(comm, shell = False):
     c = None
@@ -28,8 +29,7 @@ def run_command(comm, shell = False):
         c = p.communicate()
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
     except:
-        if c == None:
-            return ("", "Command not found!", 1)
+        if not c: return ("", "Command not found!", 1)
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
 
 def open_url(url):
@@ -37,7 +37,7 @@ def open_url(url):
     try:
         response = urlopen(url)
     except Exception as e:
-        if sys.version_info >= (3, 0) or not (isinstance(e, urllib2.URLError) and "CERTIFICATE_VERIFY_FAILED" in str(e)):
+        if 2/3==0 or not (isinstance(e, urllib2.URLError) and "CERTIFICATE_VERIFY_FAILED" in str(e)):
             # Either py3, or not the right error for this "fix"
             return None
         # Py2 and a Cert verify error - let's set the unverified context
@@ -55,32 +55,19 @@ def _get_string(url):
         return None
     CHUNK = 16 * 1024
     bytes_so_far = 0
-    try:
-        total_size = int(response.headers['Content-Length'])
-    except:
-        total_size = -1
+    try: total_size = int(response.headers['Content-Length'])
+    except: total_size = -1
     chunk_so_far = "".encode("utf-8")
     while True:
         chunk = response.read(CHUNK)
         bytes_so_far += len(chunk)
-        if not chunk:
-            break
+        if not chunk: break
         chunk_so_far += chunk
     return chunk_so_far.decode("utf-8")
 
 def get_version(text):
-    try:
-        return text.split("\n")[1][2:]
-    except:
-        return "Unknown"
-
-def need_update(new, curr):
-    for i in range(len(curr)):
-        if int(new[i]) < int(curr[i]):
-            return False
-        elif int(new[i]) > int(curr[i]):
-            return True
-    return False
+    try: return text.split("\n")[1][2:]
+    except: return "Unknown"
 
 def check_update():
     # Checks against https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command to see if we need to update
@@ -89,45 +76,72 @@ def check_update():
     with open(os.path.realpath(__file__), "r") as f:
         # Our version should always be the second line
         version = get_version(f.read())
-    print(version)
+    print("Current version: {}".format(version))
     try:
-        new_text = _get_string(url)
-        new_version = get_version(new_text)
-    except:
+        new_py = _get_string(base_url.format(file_list[0]))
+        new_version = get_version(new_py)
+        print(" Remote version: {}".format(new_version))
+    except Exception as e:
         # Not valid json data
-        print("Error checking for updates (network issue)")
+        print("Error checking for updates:\n{}".format(e))
         return
-
-    if version == new_version:
-        # The same - return
-        print("v{} is already current.".format(version))
+    print("")
+    if new_version.lower() == "unknown" or version == new_version:
+        # Greater, or the same - return
+        print("No update needed.")
         return True
-    # Split the version number
+    # Let's pad the version numbers to the same length
+    # and do the same for the number of chars in each sub version
+    v = version.split(".")
+    nv = new_version.split(".")
+    v_len = len(max((v,nv),key=len))
+    pad   = len(max(v+nv,key=len))
+    v = ".".join([x.rjust(pad,"0") for x in v] + ["0".rjust(pad,"0") for x in range(v_len-len(v))])
+    nv = ".".join([x.rjust(pad,"0") for x in nv] + ["0".rjust(pad,"0") for x in range(v_len-len(nv))])
+    # No need to update
+    if v >= nv:
+        print("No update needed.")
+        return True
+    print("Needs update - gathering files...")
+    if os.path.basename(__file__) != file_list[0]:
+        print(" - Source files renamed - adjusting...")
+        file_name = ".".join(os.path.basename(__file__).split(".")[:-1])
+        adjusted = [file_name+"."+x.split(".")[-1] for x in file_list]
+        adjusted = []
+        for x in file_list:
+            new_name = file_name+"."+x.split(".")[-1]
+            print(" --> {} -> {}".format(x,new_name))
+            adjusted.append(new_name)
+    else:
+        adjusted = [x for x in file_list]
     try:
-        v = version.split(".")
-        cv = new_version.split(".")
-    except:
-        # not formatted right - bail
-        print("Error checking for updates (version string malformed)")
+        # Update each file
+        for i,f in enumerate(adjusted):
+            print(" - Checking {}...".format(f))
+            if not os.path.exists(f):
+                print(" --> Skipped (not found locally)...")
+                continue # Don't update files we don't have
+            print(" --> Downloading...")
+            file_contents = _get_string(base_url.format(file_list[i]))
+            print(" --> Replacing...")
+            with open(f, "w") as x:
+                x.write(file_contents)
+            # chmod +x on non-Windows, then restart
+            if os.name!="nt" and not f.lower().endswith(".bat"):
+                print(" --> Setting executable mode...")
+                run_command(["chmod", "+x", f])
+    except Exception as e:
+        print("Error gathering files:\n{}".format(e))
         return
-
-    if not need_update(cv, v):
-        print("v{} is already current.".format(version))
-        return True
-
-    # Update
-    with open(os.path.realpath(__file__), "w") as f:
-        f.write(new_text)
-
-    # chmod +x on non-Windows, then restart
-    if os.name!="nt": run_command(["chmod", "+x", __file__])
-    os.execv(sys.executable, [sys.executable,__file__]+sys.argv)
+    print("")
+    print("Restarting {}...".format(adjusted[0]))
+    exit()
+    os.execv(sys.executable, [sys.executable,file_list[0]]+sys.argv)
 
 def chmod(path):
     # Takes a directory path, then chmod +x /that/path/*.command
-    if not os.path.exists(path):
-        return
-    accepted = [ ".command", ".sh", ".py" ]
+    if not os.path.exists(path): return
+    accepted = (".command",".sh",".py")
     if not os.path.isdir(path):
         # sent a file - just chmod that
         run_command(["chmod", "+x", path])
@@ -184,7 +198,7 @@ def update():
     head("Checking {} Repo{}".format(len(repos), "" if len(repos) == 1 else "s"))
     print(" ")
     count = 0
-    for repo in sorted(repos, key=lambda x: os.path.basename(x)):
+    for repo in sorted(repos, key=lambda x: os.path.basename(x).lower()):
         count += 1
         if not os.path.exists(os.path.join(os.getcwd(), os.path.basename(repo))):
             # Doesn't exist - git clone that shiz
