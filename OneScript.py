@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-# 0.0.23
+# 0.0.24
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
-if sys.version_info >= (3, 0):
+if 2/3!=0:
     from urllib.request import urlopen
 else:
     # Import urllib2 to catch errors
@@ -37,7 +37,7 @@ def open_url(url):
     try:
         response = urlopen(url)
     except Exception as e:
-        if 2/3==0 or not (isinstance(e, urllib2.URLError) and "CERTIFICATE_VERIFY_FAILED" in str(e)):
+        if 2/3!=0 or not (isinstance(e, urllib2.URLError) and "CERTIFICATE_VERIFY_FAILED" in str(e)):
             # Either py3, or not the right error for this "fix"
             return None
         # Py2 and a Cert verify error - let's set the unverified context
@@ -136,7 +136,7 @@ def check_update():
     print("")
     print("Restarting {}...".format(adjusted[0]))
     exit()
-    os.execv(sys.executable, [sys.executable,file_list[0]]+sys.argv)
+    os.execv(sys.executable, [sys.executable,adjusted[0]]+sys.argv)
 
 def chmod(path):
     # Takes a directory path, then chmod +x /that/path/*.command
