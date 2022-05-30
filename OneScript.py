@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.24
+# 0.0.25
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -135,7 +135,6 @@ def check_update():
         return
     print("")
     print("Restarting {}...".format(adjusted[0]))
-    exit()
     os.execv(sys.executable, [sys.executable,adjusted[0]]+sys.argv)
 
 def chmod(path):
