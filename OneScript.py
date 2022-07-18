@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.25
+# 0.0.26
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -13,7 +13,7 @@ else:
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot")
+skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot","OpenCorePkg")
 repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
 base_url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/{}"
 file_list = ("OneScript.py","OneScript.command","OneScript.bat")
