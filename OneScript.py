@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.27
+# 0.0.28
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
