@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.28
+# 0.0.29
 import os, subprocess, shlex, datetime, sys, json, ssl
 
 # Python-aware urllib stuff
@@ -135,7 +135,11 @@ def check_update():
         return
     print("")
     print("Restarting {}...".format(adjusted[0]))
-    os.execv(sys.executable,[sys.executable,'"'+adjusted[0]+'"']+sys.argv[1:])
+    # We got an update here - let's call the subprocess, communicate, and
+    # exit when it does
+    p = subprocess.Popen([sys.executable,adjusted[0]]+sys.argv[1:])
+    p.communicate()
+    exit(p.returncode)
 
 def chmod(path):
     # Takes a directory path, then chmod +x /that/path/*.command
