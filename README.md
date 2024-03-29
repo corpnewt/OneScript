@@ -23,7 +23,7 @@ options:
   -l, --list-modified   List modified files reported by 'git status'
   -m, --delete-modified
                         remove all files reported as modified by 'git' before
-                        updating
+                        updating (equivalent to '-x ".*"')
   -x DELETE_MODIFIED_REGEX, --delete-modified-regex DELETE_MODIFIED_REGEX
                         remove files reported as modified by 'git status' that
                         match the passed regex filter before updating
@@ -31,5 +31,5 @@ options:
   -s, --restore-modified
                         uses 'git restore <file>' instead of deleting
   -o, --omit-mode-changes
-                        does not consider mode changes for modified files
+                        do not consider mode changes for modified files
 ```
