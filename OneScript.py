@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# 0.0.30
-import os, subprocess, shlex, datetime, sys, json, ssl
+# 0.0.31
+import os, subprocess, shlex, datetime, sys, json, ssl, argparse, re
 
 # Python-aware urllib stuff
 if 2/3!=0:
@@ -11,9 +11,15 @@ else:
     from urllib2 import urlopen
     input = raw_input
 
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
-skiprepos = ("OneScript","Hackintosh-Guide","Hackintosh-Tips-And-Tricks","CorpBot-Docker","camielbot","OpenCorePkg")
+skiprepos = (
+    "OneScript",
+    "Hackintosh-Guide",
+    "Hackintosh-Tips-And-Tricks",
+    "CorpBot-Docker",
+    "camielbot",
+    "OpenCorePkg",
+    "AMD_Vanilla"
+)
 repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
 base_url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/{}"
 file_list = ("OneScript.py","OneScript.command","OneScript.bat")
@@ -195,43 +201,224 @@ def custom_quit():
         print("Have a nice night!\n\n")
     exit(0)
 
-def update():
-    if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
-        input("\nPress [enter] to continue...")
+def update(
+    repos,
+    skip_clone=False,
+    skip_pull=False,
+    skip_update=False,
+    skip_reset=False,
+    skip_chmod=False,
+    list_modified=False,
+    delete_modified=None,
+    restore_modified=False,
+    omit_mode_changes=False):
+
+    if skip_update:
+        print("Skipping OneScript update check due to --skip-update override...")
+    else:
+        if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
+            input("\nPress [enter] to continue...")
     head("Checking {} Repo{}".format(len(repos), "" if len(repos) == 1 else "s"))
     print(" ")
-    count = 0
-    for repo in sorted(repos, key=lambda x: os.path.basename(x).lower()):
-        count += 1
+    if any((skip_clone,skip_reset,skip_chmod and os.name!="nt",skip_pull,list_modified,isinstance(delete_modified, re.Pattern))):
+        if skip_clone:
+            print(" - Not cloning missing repos")
+        if skip_chmod and os.name!="nt":
+            print(" - Not running 'chmod +x' on .command, .sh, and .py files")
+        if skip_reset:
+            print(" - Not resetting existing repos")
+        if skip_pull:
+            print(" - Not pulling existing repos")
+        if list_modified:
+            print(" - Listing modified files{}".format(
+                " (only non-mode changes)" if omit_mode_changes else ""
+            ))
+        if isinstance(delete_modified, re.Pattern):
+            if delete_modified.pattern == ".*":
+                print(" - {} all modified files{}".format(
+                    "Restoring" if restore_modified else "Deleting",
+                    " (only non-mode changes)" if omit_mode_changes else ""
+                ))
+            else:
+                print(" - {} modified files{} matching: {}".format(
+                    "Restoring" if restore_modified else "Deleting",
+                    " (only non-mode changes)" if omit_mode_changes else "",
+                    delete_modified.pattern
+                ))
+        print(" ")
+    for count,repo in enumerate(sorted(repos, key=lambda x: os.path.basename(x).lower()),start=1):
+        print("{} of {} - {}...".format(count,len(repos),os.path.basename(repo)))
         if not os.path.exists(os.path.join(os.getcwd(), os.path.basename(repo))):
-            # Doesn't exist - git clone that shiz
-            print("{} of {} - Cloning {}...".format(count, len(repos), os.path.basename(repo)))
-            out = run_command(["git", "clone", repo])
+            if not skip_clone:
+                # Doesn't exist - git clone that shiz
+                print(" - Cloning...")
+                out = run_command(["git", "clone", repo])
         else:
             # Exists - let's update it
-            print("{} of {} - Updating {}...".format(count, len(repos), os.path.basename(repo)))
             cwd = os.getcwd()
+            out = None
             os.chdir(os.path.basename(repo))
-            out = run_command(["git", "reset", "--hard"])
-            out = run_command(["git", "pull"])
+            if list_modified or isinstance(delete_modified,re.Pattern):
+                # We're removing entries labeled modified by git status
+                # Let's get a list of affected files
+                status = run_command(["git","status"])[0].split("\n")
+                modified = [x.split("\tmodified:   ")[1].strip() for x in status if x.startswith("\tmodified:   ")]
+                if omit_mode_changes:
+                    # Only get changes that are not "old mode xxxx"/"new mode xxxx"
+                    modified_non_mode = []
+                    for m in modified:
+                        mod = run_command(["git","diff",m])[0].strip().split("\n")[1:]
+                        if any((not x.startswith(("old mode ","new mode ")) for x in mod)):
+                            modified_non_mode.append(m)
+                    modified = modified_non_mode
+                # Iterate the qualified modified list
+                if modified:
+                    if list_modified:
+                        print(" - Modified Files:")
+                        print("\n".join(["    {}".format(x) for x in modified]))
+                    if delete_modified is not None:
+                        # Let's find our matches based on our regex
+                        matched = [x for x in modified if delete_modified.fullmatch(x)]
+                        if matched:
+                            print(" - {} Matched Modified Files:".format("Restoring" if restore_modified else "Deleting"))
+                            print("\n".join(["    {}".format(x) for x in matched]))
+                            for m in matched:
+                                if restore_modified:
+                                    res = run_command(["git","restore",m])
+                                    if res[2] != 0:
+                                        print(" --> Failed to restore {}: {}".format(m,res[1]))
+                                else:
+                                    try:
+                                        os.remove(m)
+                                    except Exception as e:
+                                        print(" --> Failed to delete {}: {}".format(m,e))
+            if not skip_reset:
+                # Only reset the repo if allowed
+                print(" - Resetting repo...")
+                run_command(["git", "reset", "--hard"])
+            if not skip_pull:
+                print(" - Pulling changes...")
+                out = run_command(["git", "pull"])
             os.chdir(cwd)
-        print(out[0] if out[2] == 0 else out[1])
+        if out is not None:
+            output = (out[0] if out[2]==0 else out[1]).rstrip()
+            if output: print(output)
+        print("")
         # Set perms
-        if os.name!="nt": chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
+        if not skip_chmod and os.name!="nt":
+            chmod(os.path.join(os.getcwd(), os.path.basename(repo)))
 
-# Gather all repos
-head("Gathering Repo Info...")
-print("")
-print(repourl)
-print("")
-all_repos = json.loads(_get_string(repourl))
-repos = [x["html_url"] for x in all_repos if not x["name"] in skiprepos]
+def check_git():
+    # Make sure we have git available
+    return run_command(["where" if os.name=="nt" else "which", "git"])[0].split("\n")[0].strip()
 
-def main():
-    update()
-    if os.name == "nt": input("Press [enter] to exit...") # Let the user exit on Windows
-    custom_quit()
+def main(
+    skip_clone=False,
+    skip_pull=False,
+    skip_update=False,
+    skip_reset=False,
+    skip_chmod=False,
+    list_modified=False,
+    delete_modified=None,
+    restore_modified=False,
+    omit_mode_changes=False):
 
+    return_code = 0
+    if not check_git():
+        return_code = 1
+        head("Git Not Found")
+        print("")
+        print("The 'git' command was not found in your PATH.  Please download")
+        print("and install it from the following URL:")
+        print("")
+        if os.name=="nt":
+            print("https://git-scm.com/download/win")
+        elif sys.platform=="darwin":
+            print("https://git-scm.com/download/mac")
+        else:
+            print("https://git-scm.com/download")
+        print("")
+    else:
+        # Gather all repos
+        head("Gathering Repo Info...")
+        print("")
+        print(repourl)
+        print("")
+        all_repos = json.loads(_get_string(repourl))
+        repos = [x["html_url"] for x in all_repos if not x["name"] in skiprepos]
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(os.path.realpath(__file__)))
+        try:
+            update(
+                repos,
+                skip_clone=skip_clone,
+                skip_pull=skip_pull,
+                skip_update=skip_update,
+                skip_reset=skip_reset,
+                skip_chmod=skip_chmod,
+                list_modified=list_modified,
+                delete_modified=delete_modified,
+                restore_modified=restore_modified,
+                omit_mode_changes=omit_mode_changes
+            )
+        except Exception as e:
+            return_code = 1
+            print("Something went wrong: {}".format(e))
+            print("")
+        os.chdir(cwd)
+    if os.name == "nt":
+        input("Press [enter] to exit...") # Let the user exit on Windows
+    if return_code == 0:
+        custom_quit()
+    else:
+        exit(return_code)
 
 if __name__ == '__main__':
-    main()
+    # Setup the cli args
+    parser = argparse.ArgumentParser(prog="OneScript", description="OneScript - a little script to update some other scripts.")
+    parser.add_argument("-c", "--skip-clone", help="skip running 'git clone' for missing repos", action="store_true")
+    parser.add_argument("-p", "--skip-pull", help="skip running 'git pull' for existing repos", action="store_true")
+    parser.add_argument("-u", "--skip-update", help="skip checking for OneScript updates", action="store_true")
+    parser.add_argument("-r", "--skip-reset", help="skip running 'git reset --hard' for each repo before 'git pull'", action="store_true")
+    parser.add_argument("-d", "--skip-chmod", help="skip running 'chmod +x' on .command, .sh, and .py files when not running on Windows", action="store_true")
+    parser.add_argument("-a", "--skip-all", help="applies all --skip-xxxx switches (equivalent to -c -p -u -r -d)", action="store_true")
+    parser.add_argument("-l", "--list-modified", help="List modified files reported by 'git status'", action="store_true")
+    parser.add_argument("-m", "--delete-modified", help="remove all files reported as modified by 'git' before updating", action="store_true")
+    parser.add_argument("-x", "--delete-modified-regex", help="remove files reported as modified by 'git status' that match the passed regex filter before updating (overrides -m)")
+    parser.add_argument("-s", "--restore-modified", help="uses 'git restore <file>' instead of deleting", action="store_true")
+    parser.add_argument("-o", "--omit-mode-changes", help="does not consider mode changes for modified files", action="store_true")
+
+    args = parser.parse_args()
+
+    if args.skip_all:
+        args.skip_clone = True
+        args.skip_pull = True
+        args.skip_update = True
+        args.skip_reset = True
+        args.skip_chmod = True
+
+    delete_modified = None # Initialize with None
+    if args.delete_modified_regex:
+        # We need to ensure the regex is valid
+        try:
+            delete_modified = re.compile(args.delete_modified_regex)
+        except Exception as e:
+            print("Invalid regex passed to --delete-modified-regex:\n - {}".format(e))
+            exit(1)
+    elif args.delete_modified or args.restore_modified:
+        # We're not passing regex - but we still need to use regex to match names
+        # We'll just allow all with .*
+        delete_modified = re.compile(".*")
+
+    # Start our main function
+    main(
+        skip_clone=args.skip_clone,
+        skip_pull=args.skip_pull,
+        skip_update=args.skip_update,
+        skip_reset=args.skip_reset,
+        skip_chmod=args.skip_chmod,
+        list_modified=args.list_modified,
+        delete_modified=delete_modified,
+        restore_modified=args.restore_modified,
+        omit_mode_changes=args.omit_mode_changes
+    )
