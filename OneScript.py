@@ -251,7 +251,7 @@ def update(
         if not os.path.exists(os.path.join(os.getcwd(), os.path.basename(repo))):
             if not skip_clone:
                 # Doesn't exist - git clone that shiz
-                print(" - Cloning...")
+                print(" - Cloning repo...")
                 out = run_command(["git", "clone", repo])
         else:
             # Exists - let's update it
