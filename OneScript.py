@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.31
+# 0.0.32
 import os, subprocess, shlex, datetime, sys, json, ssl, argparse, re
 
 # Python-aware urllib stuff
@@ -11,7 +11,7 @@ else:
     from urllib2 import urlopen
     input = raw_input
 
-skiprepos = (
+skip_repos = (
     "OneScript",
     "Hackintosh-Guide",
     "Hackintosh-Tips-And-Tricks",
@@ -20,7 +20,8 @@ skiprepos = (
     "OpenCorePkg",
     "AMD_Vanilla"
 )
-repourl = "https://api.github.com/users/corpnewt/repos?per_page=100"
+per_page = 100 # 100 is the max
+repo_url = "https://api.github.com/users/corpnewt/repos?per_page={}".format(per_page)
 base_url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/{}"
 file_list = ("OneScript.py","OneScript.command","OneScript.bat")
 
@@ -342,30 +343,56 @@ def main(
         # Gather all repos
         head("Gathering Repo Info...")
         print("")
-        print(repourl)
+        page = 1
+        repos = []
+        while True:
+            try:
+                # Generate our new URL and use a page count
+                page_url = "{}&page={}".format(repo_url,page)
+                print(" - {}".format(page_url))
+                # Load the json data from the page_url
+                page_repos = json.loads(_get_string(page_url))
+                if not page_repos:
+                    # If we didn't get anything bail
+                    break
+                # Get a list of URLs from the page_repos loaded this time around
+                repo_urls = [x["html_url"] for x in page_repos if not x["name"] in skip_repos]
+                # Add the new URLs to our repo list
+                repos += repo_urls
+                if not len(page_repos) >= per_page:
+                    # Didn't get a full page of repos - no need to check
+                    # for the next page.  Bail
+                    break
+            except Exception as e:
+                print(" --> Failed to get info: {}".format(e))
+                break
+            page += 1
         print("")
-        all_repos = json.loads(_get_string(repourl))
-        repos = [x["html_url"] for x in all_repos if not x["name"] in skiprepos]
-        cwd = os.getcwd()
-        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-        try:
-            update(
-                repos,
-                skip_clone=skip_clone,
-                skip_pull=skip_pull,
-                skip_update=skip_update,
-                skip_reset=skip_reset,
-                skip_chmod=skip_chmod,
-                list_modified=list_modified,
-                delete_modified=delete_modified,
-                restore_modified=restore_modified,
-                omit_mode_changes=omit_mode_changes
-            )
-        except Exception as e:
+        if not repos:
+            print("No repos located - nothing to do.\n")
             return_code = 1
-            print("Something went wrong: {}".format(e))
+        else:
             print("")
-        os.chdir(cwd)
+            cwd = os.getcwd()
+            os.chdir(os.path.dirname(os.path.realpath(__file__)))
+            try:
+                update(
+                    repos,
+                    skip_clone=skip_clone,
+                    skip_pull=skip_pull,
+                    skip_update=skip_update,
+                    skip_reset=skip_reset,
+                    skip_chmod=skip_chmod,
+                    list_modified=list_modified,
+                    delete_modified=delete_modified,
+                    restore_modified=restore_modified,
+                    omit_mode_changes=omit_mode_changes
+                )
+            except Exception as e:
+                return_code = 1
+                print("Something went wrong: {}".format(e))
+                print("")
+            os.chdir(cwd)
     if os.name == "nt":
         input("Press [enter] to exit...") # Let the user exit on Windows
     if return_code == 0:
