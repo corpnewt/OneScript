@@ -247,6 +247,7 @@ def update(
                 ))
         print(" ")
     for count,repo in enumerate(sorted(repos, key=lambda x: os.path.basename(x).lower()),start=1):
+        out = None
         print("{} of {} - {}...".format(count,len(repos),os.path.basename(repo)))
         if not os.path.exists(os.path.join(os.getcwd(), os.path.basename(repo))):
             if not skip_clone:
@@ -256,7 +257,6 @@ def update(
         else:
             # Exists - let's update it
             cwd = os.getcwd()
-            out = None
             os.chdir(os.path.basename(repo))
             if list_modified or isinstance(delete_modified,re.Pattern):
                 # We're removing entries labeled modified by git status
