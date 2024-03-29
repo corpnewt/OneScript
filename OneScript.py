@@ -78,16 +78,15 @@ def get_version(text):
 
 def check_update():
     # Checks against https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command to see if we need to update
-    head("Checking for Updates")
-    print(" ")
+    print("Checking for Updates...")
     with open(os.path.realpath(__file__), "r") as f:
         # Our version should always be the second line
         version = get_version(f.read())
-    print("Current version: {}".format(version))
+    print(" - Current version: {}".format(version))
     try:
         new_py = _get_string(base_url.format(file_list[0]))
         new_version = get_version(new_py)
-        print(" Remote version: {}".format(new_version))
+        print(" - Remote version:  {}".format(new_version))
     except Exception as e:
         # Not valid json data
         print("Error checking for updates:\n{}".format(e))
@@ -206,7 +205,6 @@ def update(
     repos,
     skip_clone=False,
     skip_pull=False,
-    skip_update=False,
     skip_reset=False,
     skip_chmod=False,
     list_modified=False,
@@ -214,11 +212,6 @@ def update(
     restore_modified=False,
     omit_mode_changes=False):
 
-    if skip_update:
-        print("Skipping OneScript update check due to --skip-update override...")
-    else:
-        if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
-            input("\nPress [enter] to continue...")
     head("Checking {} Repo{}".format(len(repos), "" if len(repos) == 1 else "s"))
     print(" ")
     if any((skip_clone,skip_reset,skip_chmod and os.name!="nt",skip_pull,list_modified,isinstance(delete_modified, re.Pattern))):
@@ -341,8 +334,15 @@ def main(
         print("")
     else:
         # Gather all repos
-        head("Gathering Repo Info...")
+        head("Gathering Preliminary Info...")
         print("")
+        if skip_update:
+            print("Skipping OneScript update check due to --skip-update override...")
+        else:
+            if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
+                input("\nPress [enter] to continue...")
+        print("")
+        print("Gathering repo info...")
         page = 1
         repos = []
         while True:
@@ -372,7 +372,6 @@ def main(
             print("No repos located - nothing to do.\n")
             return_code = 1
         else:
-            print("")
             cwd = os.getcwd()
             os.chdir(os.path.dirname(os.path.realpath(__file__)))
             try:
@@ -380,7 +379,6 @@ def main(
                     repos,
                     skip_clone=skip_clone,
                     skip_pull=skip_pull,
-                    skip_update=skip_update,
                     skip_reset=skip_reset,
                     skip_chmod=skip_chmod,
                     list_modified=list_modified,
