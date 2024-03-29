@@ -383,10 +383,10 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--skip-chmod", help="skip running 'chmod +x' on .command, .sh, and .py files when not running on Windows", action="store_true")
     parser.add_argument("-a", "--skip-all", help="applies all --skip-xxxx switches (equivalent to -c -p -u -r -d)", action="store_true")
     parser.add_argument("-l", "--list-modified", help="List modified files reported by 'git status'", action="store_true")
-    parser.add_argument("-m", "--delete-modified", help="remove all files reported as modified by 'git' before updating", action="store_true")
+    parser.add_argument("-m", "--delete-modified", help="remove all files reported as modified by 'git' before updating (equivalent to '-x \".*\"')", action="store_true")
     parser.add_argument("-x", "--delete-modified-regex", help="remove files reported as modified by 'git status' that match the passed regex filter before updating (overrides -m)")
     parser.add_argument("-s", "--restore-modified", help="uses 'git restore <file>' instead of deleting", action="store_true")
-    parser.add_argument("-o", "--omit-mode-changes", help="does not consider mode changes for modified files", action="store_true")
+    parser.add_argument("-o", "--omit-mode-changes", help="do not consider mode changes for modified files", action="store_true")
 
     args = parser.parse_args()
 
