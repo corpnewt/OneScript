@@ -77,6 +77,7 @@ def get_version(text):
     except: return "Unknown"
 
 def check_update():
+    target_dir = os.path.dirname(os.path.realpath(__file__))
     # Checks against https://raw.githubusercontent.com/corpnewt/OneScript/master/OneScript.command to see if we need to update
     print("Checking for Updates...")
     with open(os.path.realpath(__file__), "r") as f:
@@ -123,19 +124,20 @@ def check_update():
     try:
         # Update each file
         for i,f in enumerate(adjusted):
+            fp = os.path.join(target_dir,f)
             print(" - Checking {}...".format(f))
-            if not os.path.exists(f):
+            if not os.path.exists(fp):
                 print(" --> Skipped (not found locally)...")
                 continue # Don't update files we don't have
             print(" --> Downloading...")
             file_contents = _get_string(base_url.format(file_list[i]))
             print(" --> Replacing...")
-            with open(f, "w") as x:
+            with open(fp, "w") as x:
                 x.write(file_contents)
             # chmod +x on non-Windows, then restart
             if os.name!="nt" and not f.lower().endswith(".bat"):
                 print(" --> Setting executable mode...")
-                run_command(["chmod", "+x", f])
+                run_command(["chmod", "+x", fp])
     except Exception as e:
         print("Error gathering files:\n{}".format(e))
         return
@@ -143,7 +145,8 @@ def check_update():
     print("Restarting {}...".format(adjusted[0]))
     # We got an update here - let's call the subprocess, communicate, and
     # exit when it does
-    p = subprocess.Popen([sys.executable,adjusted[0]]+sys.argv[1:])
+
+    p = subprocess.Popen([sys.executable,os.path.join(target_dir,adjusted[0])]+sys.argv[1:])
     p.communicate()
     exit(p.returncode)
 
