@@ -5,7 +5,8 @@ A little script to update some other scripts
 
 ```
 usage: OneScript [-h] [-c] [-p] [-u] [-r] [-d] [-a] [-l] [-m]
-                 [-x DELETE_MODIFIED_REGEX] [-s] [-o]
+                 [-x DELETE_MODIFIED_REGEX] [-s] [-o] [-i INCLUDE]
+                 [-e EXCLUDE]
 
 OneScript - a little script to update some other scripts.
 
@@ -32,4 +33,10 @@ options:
                         uses 'git restore <file>' instead of deleting
   -o, --omit-mode-changes
                         do not consider mode changes for modified files
+  -i INCLUDE, --include INCLUDE
+                        comma delimited list of repo names to include (if
+                        found)
+  -e EXCLUDE, --exclude EXCLUDE
+                        comma delimited list of repo names to exclude (if
+                        found)
 ```
