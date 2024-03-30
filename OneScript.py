@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.32
+# 0.0.33
 import os, subprocess, shlex, datetime, sys, json, ssl, argparse, re
 
 # Python-aware urllib stuff
@@ -185,25 +185,6 @@ def head(text = "One Script", width = 55):
     print(middle)
     print("#"*width)
 
-def custom_quit():
-    head()
-    print("by CorpNewt\n")
-    print("Thanks for testing it out, for bugs/comments/complaints")
-    print("send me a message on Reddit, or check out my GitHub:\n")
-    print("www.reddit.com/u/corpnewt")
-    print("www.github.com/corpnewt\n")
-    # Get the time and wish them a good morning, afternoon, evening, and night
-    hr = datetime.datetime.now().time().hour
-    if hr > 3 and hr < 12:
-        print("Have a nice morning!\n\n")
-    elif hr >= 12 and hr < 17:
-        print("Have a nice afternoon!\n\n")
-    elif hr >= 17 and hr < 21:
-        print("Have a nice evening!\n\n")
-    else:
-        print("Have a nice night!\n\n")
-    exit(0)
-
 def update(
     repos,
     skip_clone=False,
@@ -318,7 +299,9 @@ def main(
     list_modified=False,
     delete_modified=None,
     restore_modified=False,
-    omit_mode_changes=False):
+    omit_mode_changes=False,
+    include=None,
+    exclude=None):
 
     return_code = 0
     if not check_git():
@@ -348,6 +331,12 @@ def main(
         print("Gathering repo info...")
         page = 1
         repos = []
+        include_list = []
+        exclude_list = []
+        if include:
+            include_list = [x.strip() for x in include.lower().split(",")]
+        if exclude:
+            exclude_list = [x.strip() for x in exclude.lower().split(",")] 
         while True:
             try:
                 # Generate our new URL and use a page count
@@ -358,11 +347,18 @@ def main(
                 if not page_repos:
                     # If we didn't get anything bail
                     break
+                # Keep track of how many we got
+                per_page_count = len(page_repos)
+                # Adjust according to include/exclude lists
+                if include_list:
+                    page_repos = [x for x in page_repos if x["name"].lower() in include_list]
+                if exclude_list:
+                    page_repos = [x for x in page_repos if x["name"].lower() not in exclude_list]
                 # Get a list of URLs from the page_repos loaded this time around
                 repo_urls = [x["html_url"] for x in page_repos if not x["name"] in skip_repos]
                 # Add the new URLs to our repo list
                 repos += repo_urls
-                if not len(page_repos) >= per_page:
+                if not per_page_count >= per_page:
                     # Didn't get a full page of repos - no need to check
                     # for the next page.  Bail
                     break
@@ -394,12 +390,10 @@ def main(
                 print("Something went wrong: {}".format(e))
                 print("")
             os.chdir(cwd)
+    print("Done.\n")
     if os.name == "nt":
         input("Press [enter] to exit...") # Let the user exit on Windows
-    if return_code == 0:
-        custom_quit()
-    else:
-        exit(return_code)
+    exit(return_code)
 
 if __name__ == '__main__':
     # Setup the cli args
@@ -415,6 +409,8 @@ if __name__ == '__main__':
     parser.add_argument("-x", "--delete-modified-regex", help="remove files reported as modified by 'git status' that match the passed regex filter before updating (overrides -m)")
     parser.add_argument("-s", "--restore-modified", help="uses 'git restore <file>' instead of deleting", action="store_true")
     parser.add_argument("-o", "--omit-mode-changes", help="do not consider mode changes for modified files", action="store_true")
+    parser.add_argument("-i", "--include", help="comma delimited list of repo names to include (if found)")
+    parser.add_argument("-e", "--exclude", help="comma delimited list of repo names to exclude (if found)")
 
     args = parser.parse_args()
 
@@ -448,5 +444,7 @@ if __name__ == '__main__':
         list_modified=args.list_modified,
         delete_modified=delete_modified,
         restore_modified=args.restore_modified,
-        omit_mode_changes=args.omit_mode_changes
+        omit_mode_changes=args.omit_mode_changes,
+        include=args.include,
+        exclude=args.exclude
     )
