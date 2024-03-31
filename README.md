@@ -7,8 +7,13 @@ A little script to update some other scripts
 usage: OneScript [-h] [-c] [-p] [-u] [-r] [-d] [-a] [-l] [-m]
                  [-x DELETE_MODIFIED_REGEX] [-s] [-o] [-i INCLUDE]
                  [-e EXCLUDE]
+                 [settings_file]
 
 OneScript - a little script to update some other scripts.
+
+positional arguments:
+  settings_file         optional path to a JSON file containing settings to
+                        apply (overrides other args where defined)
 
 options:
   -h, --help            show this help message and exit
