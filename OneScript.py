@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.33
+# 0.0.34
 import os, subprocess, shlex, datetime, sys, json, ssl, argparse, re
 
 # Python-aware urllib stuff
@@ -150,6 +150,40 @@ def check_update():
     p.communicate()
     exit(p.returncode)
 
+def check_path(path):
+    # Let's loop until we either get a working path, or no changes
+    test_path = path
+    last_path = None
+    while True:
+        # Bail if we've looped at least once and the path didn't change
+        if last_path != None and last_path == test_path: return None
+        last_path = test_path
+        # Check if we stripped everything out
+        if not len(test_path): return None
+        # Check if we have a valid path
+        if os.path.exists(test_path):
+            return os.path.abspath(test_path)
+        # Check for quotes
+        if test_path[0] == test_path[-1] and test_path[0] in ('"',"'"):
+            test_path = test_path[1:-1]
+            continue
+        # Check for a tilde and expand if needed
+        if test_path[0] == "~":
+            tilde_expanded = os.path.expanduser(test_path)
+            if tilde_expanded != test_path:
+                # Got a change
+                test_path = tilde_expanded
+                continue
+        # Let's check for spaces - strip from the left first, then the right
+        if test_path[0] in (" ","\t"):
+            test_path = test_path[1:]
+            continue
+        if test_path[-1] in (" ","\t"):
+            test_path = test_path[:-1]
+            continue
+        # Maybe we have escapes to handle?
+        test_path = "\\".join([x.replace("\\", "") for x in test_path.split("\\\\")])
+
 def chmod(path):
     # Takes a directory path, then chmod +x /that/path/*.command
     if not os.path.exists(path): return
@@ -291,6 +325,7 @@ def check_git():
     return run_command(["where" if os.name=="nt" else "which", "git"])[0].split("\n")[0].strip()
 
 def main(
+    settings_file=None,
     skip_clone=False,
     skip_pull=False,
     skip_update=False,
@@ -322,21 +357,31 @@ def main(
         # Gather all repos
         head("Gathering Preliminary Info...")
         print("")
+        if settings_file:
+            print("Using settings from:\n - {}\n".format(settings_file))
         if skip_update:
-            print("Skipping OneScript update check due to --skip-update override...")
+            print("Skipping OneScript update check due to --skip-update override...\n")
         else:
-            if not check_update() and os.name=="nt": # Pause on Windows to keep the error on screen
-                input("\nPress [enter] to continue...")
-        print("")
+            if not check_update():
+                # Failed to check for updates
+                if os.name=="nt": # Pause on Windows to keep the error on screen
+                    input("\nPress [enter] to continue...")
+                exit(1)
+            print("")
         print("Gathering repo info...")
         page = 1
         repos = []
-        include_list = []
-        exclude_list = []
-        if include:
-            include_list = [x.strip() for x in include.lower().split(",")]
-        if exclude:
-            exclude_list = [x.strip() for x in exclude.lower().split(",")] 
+
+        # Ensure include and exclude are lowered lists if passed
+        def normalize_list(l):
+            if isinstance(l,str):
+                return [str(x).strip() for x in l.lower().split(",")]
+            elif isinstance(l,list):
+                return [str(x).lower() for x in l]
+            return None
+        include = normalize_list(include)
+        exclude = normalize_list(exclude)
+
         while True:
             try:
                 # Generate our new URL and use a page count
@@ -350,10 +395,10 @@ def main(
                 # Keep track of how many we got
                 per_page_count = len(page_repos)
                 # Adjust according to include/exclude lists
-                if include_list:
-                    page_repos = [x for x in page_repos if x["name"].lower() in include_list]
-                if exclude_list:
-                    page_repos = [x for x in page_repos if x["name"].lower() not in exclude_list]
+                if isinstance(include,list):
+                    page_repos = [x for x in page_repos if x["name"].lower() in include]
+                if isinstance(exclude,list):
+                    page_repos = [x for x in page_repos if x["name"].lower() not in exclude]
                 # Get a list of URLs from the page_repos loaded this time around
                 repo_urls = [x["html_url"] for x in page_repos if not x["name"] in skip_repos]
                 # Add the new URLs to our repo list
@@ -411,8 +456,84 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--omit-mode-changes", help="do not consider mode changes for modified files", action="store_true")
     parser.add_argument("-i", "--include", help="comma delimited list of repo names to include (if found)")
     parser.add_argument("-e", "--exclude", help="comma delimited list of repo names to exclude (if found)")
+    parser.add_argument("settings_file", nargs="?", help="optional path to a JSON file containing settings to apply (overrides other args where defined)")
 
     args = parser.parse_args()
+
+    if args.settings_file:
+        settings_file = check_path(args.settings_file)
+        if not settings_file:
+            print("Invalid settings file passed:\n - {} does not exist".format(args.settings_file))
+            exit(1)
+        if not os.path.isfile(settings_file):
+            print("Invalid settings file passed:\n - {} is not a file".format(settings_file))
+            exit(1)
+        try:
+            new_settings = json.load(open(settings_file))
+        except Exception as e:
+            print("Invalid settings file passed:\n - {}".format(e))
+            exit(1)
+        # We got something - make sure it's a dict top-level
+        if not isinstance(new_settings,dict):
+            print("Invalid settings file passed:\n - Invalid format")
+            exit(1)
+        # Retain the full settings_file path at this point
+        args.settings_file = settings_file
+        # Now let's go through our settings and adjust them accordingly
+        arg_list = (
+            "skip_pull",
+            "skip_update",
+            "skip_reset",
+            "skip_chmod",
+            "skip_all",
+            "list_modified",
+            "delete_modified",
+            "delete_modified-regex",
+            "restore_modified",
+            "omit_mode_changes",
+            "include",
+            "exclude"
+        )
+        CLASS_BOOL = type(True)
+        CLASS_NONE = type(None)
+        CLASS_LIST = type([])
+        CLASS_STR  = type("")
+        allowed_types = {
+            "delete_modified_regex": (
+                CLASS_NONE,
+                CLASS_STR
+            ),
+            "include": (
+                CLASS_NONE,
+                CLASS_STR,
+                CLASS_LIST
+            ),
+            "exclude": (
+                CLASS_NONE,
+                CLASS_STR,
+                CLASS_LIST
+            )
+        }
+        types_to_names = {
+            CLASS_BOOL: "true/false",
+            CLASS_NONE: "null",
+            CLASS_LIST: "list of strings",
+            CLASS_STR:  "string"
+        }
+        for a in arg_list:
+            if not a in new_settings:
+                continue # Skip missing args
+            # Make sure it's the right type
+            allowed = allowed_types.get(a,(CLASS_BOOL,))
+            if not type(new_settings[a]) in allowed:
+                # Nope
+                print("Invalid settings file passed:\n - '{}' can only be of types: {}".format(
+                    a,
+                    ", ".join([types_to_names.get(x,x) for x in allowed])
+                ))
+                exit(1)
+            # Set it locally
+            setattr(args,a,new_settings[a])
 
     if args.skip_all:
         args.skip_clone = True
@@ -436,6 +557,7 @@ if __name__ == '__main__':
 
     # Start our main function
     main(
+        settings_file=args.settings_file,
         skip_clone=args.skip_clone,
         skip_pull=args.skip_pull,
         skip_update=args.skip_update,
