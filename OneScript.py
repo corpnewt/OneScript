@@ -39,17 +39,6 @@ def kill_pid(pid):
     except KeyboardInterrupt:
         # Just exit here
         exit()
-    if p.returncode != 0:
-        return p.returncode # Something went wrong killing it
-    # Verify it closed on a timed loop
-    wait_start = time.time()
-    while True:
-        if not get_pids(pid=pid):
-            break # No longer running
-        if time.time() - wait_start >= timeout:
-            return -1 # We waited too long
-        time.sleep(0.05)
-    return 0
 
 def run_command(comm, shell = False):
     c = p = None
