@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# 0.0.34
+# 0.0.35
 import os, subprocess, shlex, datetime, sys, json, ssl, argparse, re
 
 # Python-aware urllib stuff
@@ -35,6 +35,8 @@ def run_command(comm, shell = False):
         p = subprocess.Popen(comm, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         c = p.communicate()
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
+    except KeyboardInterrupt:
+        raise
     except:
         if not c: return ("", "Command not found!", 1)
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
@@ -324,6 +326,10 @@ def check_git():
     # Make sure we have git available
     return run_command(["where" if os.name=="nt" else "which", "git"])[0].split("\n")[0].strip()
 
+def interrupt_exit(returncode=0):
+    print("\n - Keyboard Interrupt, exiting...")
+    exit(returncode)
+
 def main(
     settings_file=None,
     skip_clone=False,
@@ -407,6 +413,8 @@ def main(
                     # Didn't get a full page of repos - no need to check
                     # for the next page.  Bail
                     break
+            except KeyboardInterrupt:
+                interrupt_exit()
             except Exception as e:
                 print(" --> Failed to get info: {}".format(e))
                 break
@@ -430,6 +438,9 @@ def main(
                     restore_modified=restore_modified,
                     omit_mode_changes=omit_mode_changes
                 )
+            except KeyboardInterrupt:
+                os.chdir(cwd)
+                interrupt_exit()
             except Exception as e:
                 return_code = 1
                 print("Something went wrong: {}".format(e))
