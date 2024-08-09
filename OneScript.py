@@ -25,8 +25,34 @@ repo_url = "https://api.github.com/users/corpnewt/repos?per_page={}".format(per_
 base_url = "https://raw.githubusercontent.com/corpnewt/OneScript/master/{}"
 file_list = ("OneScript.py","OneScript.command","OneScript.bat")
 
+def kill_pid(pid):
+    timeout = 10 # Allow up to 10 seconds to kill
+    # Automate taskkill or kill based on os
+    comm = ["taskkill","/f","/pid",str(pid),"/t"] if os.name=="nt" else ["kill",str(pid)]
+    p = subprocess.Popen(
+        comm,
+        stderr=getattr(subprocess,"DEVNULL",open(os.devnull,"w")),
+        stdout=getattr(subprocess,"DEVNULL",open(os.devnull,"w"))
+    )
+    try:
+        p.communicate() # Wait for it to complete
+    except KeyboardInterrupt:
+        # Just exit here
+        exit()
+    if p.returncode != 0:
+        return p.returncode # Something went wrong killing it
+    # Verify it closed on a timed loop
+    wait_start = time.time()
+    while True:
+        if not get_pids(pid=pid):
+            break # No longer running
+        if time.time() - wait_start >= timeout:
+            return -1 # We waited too long
+        time.sleep(0.05)
+    return 0
+
 def run_command(comm, shell = False):
-    c = None
+    c = p = None
     try:
         if shell and type(comm) is list:
             comm = " ".join(shlex.quote(x) for x in comm)
@@ -36,6 +62,8 @@ def run_command(comm, shell = False):
         c = p.communicate()
         return (c[0].decode("utf-8", "ignore"), c[1].decode("utf-8", "ignore"), p.returncode)
     except KeyboardInterrupt:
+        # Kill the subprocess first
+        if p: kill_pid(p.pid)
         raise
     except:
         if not c: return ("", "Command not found!", 1)
